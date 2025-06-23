@@ -71,6 +71,30 @@ cp .env.example .env
 
 ## 📊 Data Requirements
 
+### Generating CSV Data from BigQuery
+
+Before running the analysis pipeline, you need to generate the required CSV data from your BigQuery chatbot logs. Use the following SQL query to extract and format the feedback data:
+
+```sql
+with questions as ( 
+  SELECT 
+    request_time, 
+    JSON_EXTRACT_SCALAR(response, '$.queryResult.generativeInfo.actionTracingInfo.actions[0].userUtterance.text') as user_question, 
+    JSON_EXTRACT_SCALAR(derived_data, '$.agentUtterances') as bot_answer, 
+    CASE 
+      WHEN JSON_EXTRACT_SCALAR(bot_answer_feedback, '$.rating') IS NULL OR JSON_EXTRACT_SCALAR(bot_answer_feedback, '$.rating') = '' THEN 'THUMBS_UP' 
+      ELSE JSON_EXTRACT_SCALAR(bot_answer_feedback, '$.rating') 
+    END as feedback_rating, 
+    JSON_EXTRACT_SCALAR(bot_answer_feedback, '$.ratingReason.feedback') as feedback_comment 
+  FROM `hsbc-1044360-ihubasp-sandbox.chatbot.dialogflow_bigquery_export_data` 
+  WHERE request_time between '2025-06-02 00:00:01' and '2025-06-22 23:59:59' 
+    AND JSON_EXTRACT_SCALAR(bot_answer_feedback, '$.rating') IS NOT NULL 
+    AND JSON_EXTRACT_SCALAR(bot_answer_feedback, '$.rating') <> '' 
+  ORDER BY request_time asc 
+) 
+select * from questions;
+```
+
 Place your data files in the `data/` directory:
 
 ### Required Files:
